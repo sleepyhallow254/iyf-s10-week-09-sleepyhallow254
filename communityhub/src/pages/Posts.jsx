@@ -1,67 +1,67 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState } from 'react';
+import useFetch from '../hooks/useFetch';
+import { LoadingSpinner, ErrorMessage, PostCard, Input } from '../components/shared';
 
 function Posts() {
+  const [query, setQuery] = useState('');
+  const [likedPosts, setLikedPosts] = useState({});
+  const { data: posts, loading, error } = useFetch(
+    'https://jsonplaceholder.typicode.com/posts'
+  );
 
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const filteredPosts = useMemo(() => {
+    if (!posts) return [];
 
-  useEffect(() => {
+    const term = query.toLowerCase();
+    return posts
+      .filter((post) =>
+        post.title.toLowerCase().includes(term) ||
+        post.body.toLowerCase().includes(term)
+      )
+      .slice(0, 12);
+  }, [posts, query]);
 
-    async function fetchPosts() {
+  const toggleLike = (id) => {
+    setLikedPosts((prev) => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
 
-      try {
-
-        setLoading(true);
-
-        const response = await fetch(
-          "https://jsonplaceholder.typicode.com/posts"
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch posts");
-        }
-
-        const data = await response.json();
-
-        setPosts(data.slice(0, 10));
-
-      } catch (err) {
-
-        setError(err.message);
-
-      } finally {
-
-        setLoading(false);
-
-      }
-
-    }
-
-    fetchPosts();
-
-  }, []);
-
-  if (loading) return <p>Loading posts...</p>;
-  if (error) return <p>Error: {error}</p>;
+  if (loading) return <LoadingSpinner text="Loading posts..." />;
+  if (error) return <ErrorMessage message={error} />;
 
   return (
-    <div>
-
-      <h1>Posts</h1>
-
-      {posts.map(post => (
-
-        <div key={post.id}>
-
-          <h3>{post.title}</h3>
-
-          <p>{post.body}</p>
-
+    <div className="page posts-page">
+      <div className="posts-header">
+        <div>
+          <h1>Posts</h1>
+          <p>Search, like, and explore posts loaded from JSONPlaceholder.</p>
         </div>
 
-      ))}
+        <Input
+          label="Search posts"
+          name="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by title or body"
+        />
+      </div>
 
+      {filteredPosts.length === 0 ? (
+        <p className="empty-state">No posts match your search.</p>
+      ) : (
+        <div className="posts-grid">
+          {filteredPosts.map((post) => (
+            <PostCard
+              key={post.id}
+              post={post}
+              onLike={toggleLike}
+              isLiked={Boolean(likedPosts[post.id])}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
